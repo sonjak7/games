@@ -1,369 +1,397 @@
 #include <iostream>
 #include <ctime>
 #include <cstdlib>
-#include <sstream>
-#include <string>
 #include <cmath>
 #include <windows.h>
+
 using namespace std;
 
-void printBoard(string board[]){
-  for(int i = 0; i < 100; i+=10){
-    for(int t = 0; t < 10; t++){
-      cout << board[t + i];
+/**************************************************************************************************
+Takes a 2D array and initializes it with empty spaces("|   |")
+
+Parameters:
+    board(2D string array): The board being initialized
+**************************************************************************************************/
+void initializeBoard(string board[10][10]){
+    for(int i = 0; i < 10; i++){
+        for(int x = 0; x < 10; x++){
+            board[i][x] = "|   |";
+        }
     }
-    cout << endl;
-  }
 }
 
-void placeShip(string board[], int shipsize){
-  int check = 0;
-  int xcor;
-  int ycor;
-  int cor;
-  int orient;
-  while(check == 0){
-    int temp = 0;
-    int tem = 0;
-    cout << endl << "Place your " << shipsize << " ship" << endl;
-    cout << "X coordinate(1-10): ";
-    cin >> xcor;
-    cout << "Y coordinate(1-10): ";
-    cin >> ycor;
-    cor = ((ycor-1) * 10) + (xcor-1);
-    cout << "Horizontal(1) or Vertical(2): ";
-    cin >> orient;
-    if(orient == 1){
-      if(shipsize == 2){
-        for(int y = 9; y <= 99; y+=10){
-          if(y == cor){
-            temp = 5;
-          }
+/**************************************************************************************************
+Prints a 2D array as a battleship board with numeric labels
+
+Parameters:
+    board(2D string array): The board being printed
+**************************************************************************************************/
+void printBoard(string board[10][10]){
+    cout << "   ";
+    for(int m = 1; m < 10; m++){
+        cout << "  " << m << "  ";  //print top row
+    }
+    cout << " 10" << endl;
+    for(int i = 0; i < 10; i++){
+        if(i == 9){
+            cout << "10 ";
+        }                      //print header for each row
+        else{
+            cout << i + 1 << "  ";
         }
-      }
-      else if(shipsize == 3){
-        for(int c = 8; c <= 98; c+=10){
-          if(c == cor || c+1 == cor){
-            temp = 5;
-          }
+        for(int x = 0; x < 10; x++){
+            cout << board[i][x];
         }
-      }
-      else if(shipsize == 4){
-        for(int r = 7; r <= 97; r+=10){
-          if(r == cor || r+1 == cor || r+2 == cor){
-            temp = 5;
-          }
-        }
-      }
-      else if(shipsize == 5){
-        for(int m = 6; m <= 96; m+=10){
-          if(m == cor || m+1 == cor || m+2 == cor || m+3 == cor){
-            temp = 5;
-          }
-        }
-      }
-      if(temp != 5){
-        for(int e = cor; e < cor+shipsize; e++){
-          if(board[e] != "|   |"){
-            temp = 5;
-          }
-        }
-      }
-      if(temp == 5){
-        check = 0;
         cout << endl;
-        cout << "That spot doesn't fit. Try again." << endl;
-      }
-      else{
-        if(shipsize == 2){
-          board[cor] = "| 2 |";
-          board[cor+1] = "| 2 |";
+    }
+}
+
+/**************************************************************************************************
+Validates if an integer is within a certain range
+
+Parameters:
+    value(int): The value being checked
+    min(int): The minimun amount for value
+    max(int): The maximum amount for value
+
+Returns:
+    value(int): The validated version of the value(will be same if no validation was needed)
+**************************************************************************************************/
+int numValidate(int value, int min, int max){
+    while(value > max || value < min){
+        cout << "Invalid input, try again: ";
+        cin >> value;
+    }
+    return value;
+}
+
+/**************************************************************************************************
+Get board coordinates for the user, used to place ships and select spots to fire at
+
+Parameters:
+    xspot(int reference): The x-coordinate the user picks
+    yspot(int reference): The y-coordinate the user picks
+    placing(bool): Says if the function is being used for placing or firing(orientation of the
+    ship is asked if it used for placing)
+
+Returns:
+    orient(int): Whether ships is being placed horizontally(1) or vertically(2)
+**************************************************************************************************/
+int getLocation(int& xspot, int& yspot, bool placing){
+    cout << "X coordinate[1-10]: ";
+    cin >> xspot;
+    xspot = numValidate(xspot, 1, 10);
+    xspot -= 1;
+    cout << "Y coordinate[1-10]: ";
+    cin >> yspot;
+    yspot = numValidate(yspot, 1, 10);
+    yspot -= 1;
+    if(placing){
+        int orient;
+        cout << "Horizontal(1) or Vertical(2): ";
+        cin >> orient;
+        orient = numValidate(orient, 1, 2);
+        return orient;
+    }
+}
+
+/**************************************************************************************************
+Checks if the ship being placed is going outside of the board
+
+Parameters:
+    board(2D string array): The board in which the ship is being placed
+    shipSize(int): The size(length) of the ship being placed
+    coordinate(int): The initial coordinate the user picked for the ship(either the x-coordinate
+    or y-coordinate will be passed depending on its orientation)
+
+Returns:
+    in_bounds(bool): Whether or not the ship is in bounds
+**************************************************************************************************/
+bool checkBoundary(string board[10][10], int shipSize, int coordinate){
+    bool in_bounds = true;
+    for(int i = (11 - shipSize); i < 10; i++){  //loop through all invalid coordinates depending on the ship size
+        if(i == coordinate){
+            in_bounds = false;
         }
-        else if(shipsize == 3){
-          board[cor] = "| 3 |";
-          board[cor+1] = "| 3 |";
-          board[cor+2] = "| 3 |";
+    }
+    return in_bounds;
+}
+
+/**************************************************************************************************
+Checks if the ship being placed is overlaping another ship
+
+Parameters:
+    board(2D string array): The board in which the ship is being placed
+    shipSize(int): The size of the ship being placed
+    orient(int): Whether the ship is being placed horizontally(1) or vertically(2)
+    xcor(int): The initial x-coordinate of the ship being placed
+    ycor(int): The initial y-coordinate of the ship being placed
+
+Returns:
+    overlap(bool): Whether or not the ship overlaps another ship
+**************************************************************************************************/
+bool checkOverlap(string board[10][10], int shipSize, int orient, int xcor, int ycor){
+    bool overlap = true;       //if the spot isn't empty for all spaces the ship occupies, this will become false
+    if(orient == 1){
+        for(int i = xcor; i < xcor + shipSize; i++){
+            if(board[ycor][i] != "|   |"){  
+                overlap = false;
+            }
         }
-        else if(shipsize == 4){
-          board[cor] = "| 4 |";
-          board[cor+1] = "| 4 |";
-          board[cor+2] = "| 4 |";
-          board[cor+3] = "| 4 |";
-        }
-        else if(shipsize == 5){
-          board[cor] = "| 5 |";
-          board[cor+1] = "| 5 |";
-          board[cor+2] = "| 5 |";
-          board[cor+3] = "| 5 |";
-          board[cor+4] = "| 5 |";
-        }
-        check = 1;
-      }
     }
     else if(orient == 2){
-      for(int m = (110-(shipsize*10)); m <= 99; m++){
-        if(m == cor){
-          tem = 5;
-        }
-      }
-      if(tem != 5){
-        for(int e = 0; e < shipsize; e++){
-          if(board[cor+(e*10)] != "|   |"){
-            tem = 5;
-          }
-        }
-      }
-      if(tem == 5){
-        check = 0;
-        cout << endl;
-        cout << "That spot doesn't fit. Try again." << endl;
-      }
-      else{
-        if(shipsize == 2){
-          board[cor] = "| 2 |";
-          board[cor+10] = "| 2 |";
-        }
-        else if(shipsize == 3){
-          board[cor] = "| 3 |";
-          board[cor+10] = "| 3 |";
-          board[cor+20] = "| 3 |";
-        }
-        else if(shipsize == 4){
-          board[cor] = "| 4 |";
-          board[cor+10] = "| 4 |";
-          board[cor+20] = "| 4 |";
-          board[cor+30] = "| 4 |";
-        }
-        else if(shipsize == 5){
-          board[cor] = "| 5 |";
-          board[cor+10] = "| 5 |";
-          board[cor+20] = "| 5 |";
-          board[cor+30] = "| 5 |";
-          board[cor+40] = "| 5 |";
-        }
-        check = 1;
-      }
+        for(int m = ycor; m < ycor + shipSize; m++){
+            if(board[m][xcor] != "|   |"){
+                overlap = false;
+            }
+        }  
     }
-  }
+    return overlap;
 }
 
-void playerShot(int cpukey[], string cpuboard[]){
-  int xshot;
-  int yshot;
-  int shot;
-  int check = 0;
-  while(check == 0){
-    cout << "Pick a spot to fire at" << endl;
-    cout << "X coordinate: ";
-    cin >> xshot;
-    cout << "Y coordinate: ";
-    cin >> yshot;
-    shot = ((yshot-1) * 10) + (xshot-1);
-    if(cpuboard[shot] != "|   |"){
-      cout << "You've already picked that spot" << endl;
+/**************************************************************************************************
+Runs the two checks listed above correspondingly
+
+Parameters:
+    board(2D string array): The board being checked
+    shipSize: Size of the ship being placed
+    xcor(int): The initial x-coordinate of the ship being placed
+    ycor(int): The initial y-coordinate of the ship being placed
+    orient(int): Whether the ship is being placed horizontally(1) or vertically(2)
+
+Returns:
+    valid(bool): Whether or not all checks were passed successfully
+**************************************************************************************************/
+bool allChecks(string board[10][10], int shipSize, int xcor, int ycor, int orient){
+    bool valid;
+    if(orient == 1){  
+        valid = checkBoundary(board, shipSize, xcor);
+    }
+    else if(orient == 2){ 
+        valid = checkBoundary(board, shipSize, ycor);
+    }
+    if(valid){   //if ship is in bounds, check if it overlaps any other ship
+        valid = checkOverlap(board, shipSize, orient, xcor, ycor);
+    }
+    return valid;
+}
+
+/**************************************************************************************************
+Places ships on the boards(changes its value in the 2D array to | 2 |, | 3 |...)
+
+Parameters:
+    board(2D string array): The board that the ships are being placed on
+    shipSize(int): The size of the ship being placed
+    xcor(int): The initial x-coordinate of the ship being placed
+    ycor(int): The initial y-coordinate of the ship being placed
+    orient(int): Whether the ship is being placed horizontally(1) or vertically(2)
+**************************************************************************************************/
+void placeShips(string board[10][10], int shipSize, int xcor, int ycor, int orient){
+    string ship_types[4] = {"| 2 |", "| 3 |", "| 4 |", "| 5 |"};
+    if(orient == 1){
+        for(int i = 0; i < shipSize; i++){
+            board[ycor][xcor + i] = ship_types[shipSize - 2];   //will place the ship horizontally from the starting point 
+        }                                                       //[shipSize-2] represents the ship size in for form "| x |"
+    }
+    else if(orient == 2){
+        for(int x = 0; x < shipSize; x++){
+            board[ycor + x][xcor] = ship_types[shipSize - 2];    //will place the ship vertically from the starting point
+        }
+    }
+}
+
+/**************************************************************************************************
+Gets the coordinates to place the ships, and makes to calls to validate/actually place it
+
+Parameters:
+    board(2D string array): The board that the ships are going to be placed on
+    shipSize(int): The size of the ship being placed
+    player_placing(bool): Whether or not the user is placing the ships
+**************************************************************************************************/
+void getShips(string board[10][10], int shipSize, bool player_placing){
+    bool temp_checker, check = false;
+    int xcor, ycor, orient;
+    while(!check){
+        if(player_placing){
+            cout << "Place your " << shipSize << " ship" << endl;
+            orient = getLocation(xcor, ycor, true);
+        }
+        else if(!player_placing){   //the CPU will essentialy keep generating random spots until it finds one that fits
+            xcor = rand() % 10;
+            ycor = rand() % 10;
+            orient = (rand() % 2) + 1;
+        }
+        temp_checker = allChecks(board, shipSize, xcor, ycor, orient);
+        if(player_placing && !temp_checker){  //if any of the checks above resulted to false and a player is placing
+            cout << "That spot doesn't fit, try again" << endl;
+        }
+        if(temp_checker){   //all checks were passed, break while loop and place ships
+            check = true;
+            placeShips(board, shipSize, xcor, ycor, orient);
+        }
+    }
+}
+
+/**************************************************************************************************
+Updates the board depending on the result of the shot, and prints the result
+
+Parameters:
+    opp_board(2D string array): The opposing board(the board receiving the shot)
+    show_board(2D string array): The board that is shown to the screen ***this will be the same
+    as opp_board if the user's board is being updated***
+    xshot(int): The x-coordinate being fired at
+    yshot(int): The y-coordinate being fired at
+    player_picking(bool): Whether or not the player's board is being updated
+
+Returns:
+    true(bool): If the shot was a hit
+    false(bool): If the shot was not a hit
+**************************************************************************************************/
+bool updateBoard(string opp_board[10][10], string show_board[10][10], int xshot, int yshot, bool player_picking){
+    if(!player_picking){
+        cout << "CPU chose: X - " << xshot + 1 << " and Y - " << yshot + 1 << endl;
+    }
+    if(opp_board[yshot][xshot] == "|   |"){
+        cout << "Miss" << endl << endl;
+        show_board[yshot][xshot] = "| - |";
+        return false;
     }
     else{
-      check = 1;
+        cout << "Hit!" << endl << endl;
+        show_board[yshot][xshot] = "| X |";
+        return true;
     }
-  }
-  if(cpukey[shot] == 1){
-    cout << "Hit!" << endl << endl;
-    cpuboard[shot] = "| X |";
-  }
-  else{
-    cout << "Miss" << endl << endl;
-    cpuboard[shot] = "| - |";
-  }
 }
 
-int cpuShot(string board[]){
-  int disp;
-  int shot = 0;
-  int yshow;
-  int xshow;
-  int check[100] = {0};
-  shot = rand() % 100;
-  while(check[shot] == 1){
-    shot = rand() % 100;
-  }
-  check[shot] = 1;
-  xshow = shot % 10 + 1;
-  yshow = ((shot-(xshow-1))/10)+1;
-  cout << "CPU chose: X - " << xshow << " and Y - " << yshow;
+/**************************************************************************************************
+Takes a shot at the opposing board and makes calls to update it correspondingly
 
-  if(board[shot] == "| 2 |" || board[shot] == "| 3 |" ||
-    board[shot] == "| 4 |" || board[shot] == "| 5 |"){
-    cout << endl << "Hit!" << endl << endl;
-    board[shot] = "| X |";
-    disp = 1;
-  }
-  else{
-    cout << endl << "Miss" << endl << endl;
-  }
-  return disp;
+Parameters:
+    opp_board(2D string array): The opposing board(the board receiving the shot)
+    show_board(2D string array): The board that is shown to the screen ***this will be the same
+    as opp_board if the CPU is taking a shot***
+    player_picking(bool): Whether or not the player is taking a shot
+
+Returns:
+    updateBoard(function - bool): Whether the shot was a hit or a miss
+**************************************************************************************************/
+bool takeShot(string opp_board[10][10], string show_board[10][10], bool player_picking){
+    bool check = false; //represents if the selected spot has been picked already or not
+    int xshot, yshot;
+    while(!check){
+        if(player_picking){
+            cout << "Pick a spot to fire at" << endl;
+            getLocation(xshot, yshot, false);
+        }
+        else if(!player_picking){
+            xshot = rand() % 10;
+            yshot = rand() % 10;
+        }
+        if(show_board[yshot][xshot] == "| X |" || show_board[yshot][xshot] == "| - |"){
+            if(player_picking){
+                cout << "You have already picked that spot, try again" << endl;
+            }
+        }
+        else{   //a spot that hasn't been picked is selected, break loop and update board correspondingly
+            check = true;
+            return updateBoard(opp_board, show_board, xshot, yshot, player_picking);
+        }
+    }
 }
 
-void cpuShips(int cpukey[], int shipsize){
-  int check = 0;
-  int xcor;
-  int ycor;
-  int cor;
-  int orient;
-  while(check == 0){
-    int temp = 0;
-    int tem = 0;
-    xcor = rand() % 10;
-    ycor = rand() % 10;
-    cor = ((ycor) * 10) + (xcor);
-    orient = rand() % 2;
-    if(orient == 0){
-      if(shipsize == 2){
-        for(int m = 9; m <= 99; m+=10){
-          if(m == cor){
-            temp = 5;
-          }
+/**************************************************************************************************
+Checks if the game has finished or not
+
+Parameters:
+    board(2D string array): The board being checked if finished(no more ships left)
+
+Returns:
+    true(bool): If the passed board is finished
+    false(bool): If the passed board is not finished
+**************************************************************************************************/
+bool checkFinish(string board[10][10]){
+    int hit_count = 0;
+    for(int i = 0; i < 10; i++){
+        for(int x = 0; x < 10; x++){
+            if(board[x][i] == "| X |"){
+                hit_count += 1;
+            }
         }
-      }
-      else if(shipsize == 3){
-        for(int d = 8; d <= 98; d += 10){
-          if(d == cor || d+1 == cor){
-            temp = 5;
-          }
-        }
-      }
-      else if(shipsize == 4){
-        for(int u = 7; u <= 97; u += 10){
-          if(u == cor || u+1 == cor || u+2 == cor){
-            temp = 5;
-          }
-        }
-      }
-      else if(shipsize == 5){
-        for(int n = 6; n <= 97; n += 10){
-          if(n == cor || n+1 == cor || n+2 == cor || n+3 == cor){
-            temp = 5;
-          }
-        }
-      }
-      for(int w = cor; w < (cor+shipsize); w++){
-        if(cpukey[w] != 0){
-          temp = 5;
-        }
-      }
-      if(temp == 5){
-        check = 0;
-      }
-      else{
-        for(int t = 0; t < shipsize; t++){
-          cpukey[cor+t] = 1;
-        }
-        check = 1;
-      }
     }
-    else if(orient == 1){
-      for(int t = (110 - (shipsize*10)); t <= 99; t++){
-        if(t == cor){
-          tem = 5;
-        }
-      }
-      for(int v = 0; v < shipsize; v++){
-        if(cpukey[cor+(v*10)] != 0){
-          tem = 5;
-        }
-      }
-      if(tem == 5){
-        check = 0;
-      }
-      else{
-        for(int t = 0; t < (shipsize*10); t+=10){
-          cpukey[cor+t] = 1;
-        }
-        check = 1;
-      }
+    if(hit_count == 17){    //if there is 17 hits on a board, then all ships have sunk
+        return true;
     }
-  }
+    return false;
 }
 
-int checkFinish(string board[], string cpuboard[]){
-  //0 - still going, 1 - user won, 2 - cpu won
-  int fin = 0;
-  int pcount = 0;
-  int ccount = 0;
-  for(int h = 0; h < 100; h++){
-    if(board[h] == "| X |"){
-      ccount += 1;
+/**************************************************************************************************
+Creates the battleship game by making calls to initialize all boards and place ships
+
+Parameters:
+    playerBoard(2D string array): The user's board
+    cpuBoard(2D string array): The CPU's board
+    showBoard(2D string array): The modified version of the CPU's board that is shown to the user
+    (as the user should not see where the CPU's ships are placed)
+**************************************************************************************************/
+void createGame(string playerBoard[10][10], string cpuBoard[10][10], string showBoard[10][10]){
+    initializeBoard(playerBoard);
+    initializeBoard(cpuBoard);  
+    initializeBoard(showBoard);
+    for(int i = 2; i < 6; i++){
+        getShips(playerBoard, i, true);
+        printBoard(playerBoard);
+        getShips(cpuBoard, i, false);
+        if(i == 3){      //allows there to be two 3-size ships
+            getShips(playerBoard, i, true);
+            printBoard(playerBoard);
+            getShips(cpuBoard, i, false);
+        }
     }
-    if(cpuboard[h] == "| X |"){
-      pcount += 1;
+}
+
+/**************************************************************************************************
+Runs the full game of battleship by appropriately making calls
+
+Parameters:
+    playerBoard(2D string array): The user's board
+    cpuBoard(2D string array): The CPU's board
+    showBoard(2D string array): The modified version of the CPU's board that is shown to the user
+    (as the user should not see where the CPU's ships are placed)
+**************************************************************************************************/
+void run_game(string playerBoard[10][10], string cpuBoard[10][10], string showBoard[10][10]){
+    Sleep(1500);
+    while(true){    //this while loop will break, through one of the "break" statements written below
+        cout << endl << "CPU's board" << endl;
+        printBoard(showBoard);
+        takeShot(cpuBoard, showBoard, true);    //user shot
+        if(checkFinish(showBoard)){    //will trigger only if player wins(so CPU doesn't make a shot unecessarily)
+            printBoard(showBoard);
+            cout << endl << "Congratulations, you have won!" << endl;
+            break;
+        }
+        Sleep(1500);
+        if(takeShot(playerBoard, playerBoard, false)){  //CPU shot
+            Sleep(2000);
+            cout << "Your board" << endl;
+            printBoard(playerBoard);        //the user's board will print if the CPU makes a hit, will skip this if the CPU misses
+        }
+        Sleep(2000);
+        if(checkFinish(playerBoard)){   //will trigger if CPU wins
+            cout << "CPU's ships" << endl;
+            printBoard(cpuBoard);
+            cout << endl << "You have lost :(" << endl;
+            break;
+        }
     }
-  }
-  if(ccount == 17){
-    fin = 2;
-    cout << "CPU has won";
-  }
-  if(pcount == 17){
-    fin = 1;
-    cout << "You have won!";
-  }
-  return fin;
 }
 
 int main(){
-  cout << "Welcome to battleship!" << endl;
-  srand(time(0));
-  int finish = 0;
-  string board[100];
-  int cpukey[100] = {0};
-  string cpuboard[100];
-  for(int i = 0; i < 100; i++){
-    board[i] = "|   |";
-    cpuboard[i] = "|   |";
-  }
-
-  for(int t = 2; t <= 5; t++){
-    placeShip(board, t);
-    cpuShips(cpukey, t);
-    if(t == 3){
-      printBoard(board);
-      placeShip(board, 3);
-      cpuShips(cpukey, t);
-    }
-      printBoard(board);
-  }
-
-// SHOW CPU BOARD
-//   for(int v = 0; v < 100; v+=10){
-//     for(int g = 0; g < 10; g++){
-//       if(cpukey[g+v] == 1){
-//         cout << "| X |";
-//       }
-//       else{
-//         cout << "|   |";
-//       }
-//     }
-//     cout << endl;
-//   }
-
-  Sleep(2000);
-  cout << endl << endl << endl;
-
-  while(finish == 0){
-    int disp = 0;
-    cout << "CPU's board" << endl;
-    printBoard(cpuboard);
-    playerShot(cpukey, cpuboard);
-    Sleep(1000);
-    finish = checkFinish(board, cpuboard);
-    disp = cpuShot(board);
-    if(disp == 1){
-      Sleep(1500);
-      printBoard(board);
-      cout << endl << endl;
-      Sleep(800);
-    }
-    Sleep(1500);
-    finish = checkFinish(board, cpuboard);
-  }
-
-  return 0;
+    cout << "Welcome to Battleship!" << endl;
+    srand(time(0));
+    string playerBoard[10][10];
+    string cpuBoard[10][10];
+    string showBoard[10][10];
+    createGame(playerBoard, cpuBoard, showBoard);
+    run_game(playerBoard, cpuBoard, showBoard);
+    return 0;
 }
